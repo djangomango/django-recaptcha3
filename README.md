@@ -12,7 +12,7 @@ This integration app implements a recaptcha field for <a href="https://developer
 Install the required package from pip (or take the source and install it by yourself):
 
 ```bash
-pip install django-recaptcha3
+pip install git+https://github.com/djangomango/django-recaptcha3.git@main
 ```
 
 Then add django-recaptcha3 to your installed apps:
@@ -20,7 +20,7 @@ Then add django-recaptcha3 to your installed apps:
 ```python
 INSTALLED_APPS = (
     ...
-    'snowpenguin.django.recaptcha3',
+    'django_recaptcha3',
     ...
 )
 ```
@@ -28,11 +28,12 @@ INSTALLED_APPS = (
 And add your reCaptcha private and public key to your django settings.py and the default action name, recaptcha score threshold:
 
 ```python
-RECAPTCHA_PRIVATE_KEY = 'your private key'
-RECAPTCHA_PUBLIC_KEY = 'your public key'
-RECAPTCHA_DEFAULT_ACTION = 'generic'
-RECAPTCHA_SCORE_THRESHOLD = 0.5
-RECAPTCHA_LANGUAGE = 'en' # for auto detection language, remove this from your settings
+GOOGLE_RECAPTCHA_IS_ACTIVE = True
+GOOGLE_RECAPTCHA_SECRET_KEY = 'your private key'
+GOOGLE_RECAPTCHA_SITE_KEY = 'your public key'
+GOOGLE_RECAPTCHA_DEFAULT_ACTION = 'generic'
+GOOGLE_RECAPTCHA_SCORE_THRESHOLD = 0.5
+GOOGLE_RECAPTCHA_LANGUAGE = 'en' # for auto detection language, remove this from your settings
 # If you require reCaptcha to be loaded from somewhere other than https://google.com
 # (e.g. to bypass firewall restrictions), you can specify what proxy to use.
 # RECAPTCHA_FRONTEND_PROXY_HOST = 'https://recaptcha.net'
@@ -46,12 +47,13 @@ If you have to create the apikey for the domains managed by your django project,
 You can simply create a reCaptcha enabled form with the field provided by this app:
 
 ```python
-from snowpenguin.django.recaptcha3.fields import ReCaptchaField
+from django_recaptcha3 import ReCaptchaField
+
 
 class ExampleForm(forms.Form):
-    [...]
-    captcha = ReCaptchaField()
-    [...]
+  [...]
+  captcha = ReCaptchaField()
+  [...]
 ```
 
 Form validation of the ReCaptchaField causes us to verify the token returned from the client against the ReCaptcha servers and populates a dictionary containing the `score`, `action`, `hostname`, and `challenge_ts` fields as the form fields `cleaned_data`:
@@ -68,17 +70,18 @@ If a communication problem occurs, the token supplied by the client is invalid o
 
 ## Automatic Enforcement
 
-If you want low scores to cause a ValidationError, pass an appropriate `score_threshold` to the `ReCaptchaField`, or set the configuration variable settings.RECAPTCHA_SCORE_THRESHOLD.
+If you want low scores to cause a ValidationError, pass an appropriate `score_threshold` to the `ReCaptchaField`, or set the configuration variable settings.GOOGLE_RECAPTCHA_SCORE_THRESHOLD.
 
 The default value for the threshold is 0.0, which allows all successful capture responses through for you to later check the value of `score`.
 
 ```python
-from snowpenguin.django.recaptcha3.fields import ReCaptchaField
+from django_recaptcha3 import ReCaptchaField
+
 
 class ExampleForm(forms.Form):
-    [...]
-    captcha = ReCaptchaField(score_threshold=0.5)
-    [...]
+  [...]
+  captcha = ReCaptchaField(score_threshold=0.5)
+  [...]
 ```
 
 You can also set the private key on the "private_key" argument of the ReCaptchaField contructor if you want to override the one inside your configuration.
@@ -204,35 +207,8 @@ You can use the plain javascript, just remember to set the correct value for the
 
 ## Testing
 ### Test unit support
-You can disable recaptcha field validation in unit tests by setting the RECAPTCHA_DISABLE env variable. This will skip the external call to Recaptca servers, returning a valid field with no data.
+You can disable recaptcha field validation in unit tests by setting GOOGLE_RECAPTCHA_IS_ACTIVE to False. This will skip the external call to Recaptca servers, returning a valid field with no data.
 
 ```python
-os.environ['RECAPTCHA_DISABLE'] = 'True'
-```
-You can use any word in place of "True", the clean function will check only if the variable exists.
-
-If you set `RECAPTCHA_DISABLE` to be valid json, it will be interpreted as a mock captcha server response allowing you to mock score/hostname/action as required:
-```python
-os.environ['RECAPTCHA_DISABLE'] = json.dumps({'score': 0.4, 'hostname': 'localhost', 'action': 'homepage'})
-```
-
-### Test unit with recaptcha3 disabled
-```python
-import os
-import unittest
-
-from yourpackage.forms import MyForm
-
-class TestCase(unittest.TestCase):
-    def setUp(self):
-        os.environ['RECAPTCHA_DISABLE'] = 'True'
-
-    def test_myform(self):
-        form = MyForm({
-            'field1': 'field1_value'
-        })
-        self.assertTrue(form.is_valid())
-
-    def tearDown(self):
-        del os.environ['RECAPTCHA_DISABLE']
+GOOGLE_RECAPTCHA_IS_ACTIVE = False
 ```

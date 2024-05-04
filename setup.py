@@ -1,53 +1,39 @@
-# -*- coding: utf-8 -*-
-from setuptools import setup, find_packages
+from setuptools import setup
 
-
-def readme():
-    with open('README.txt') as f:
-        return f.read()
-
-
-version = '0.4.0'
-
+with open('README.md', 'r') as fh:
+    long_description = fh.read()
 
 setup(
     name='django-recaptcha3',
-    packages=find_packages(exclude=['samples']),
-    # package_data={'': ['']},
-    include_package_data=True,
-    version=version,
+    version='0.1',
+    author='Andrea Briganti',
+    author_email='kbytesys@gmail.com',
+    url='https://github.com/djangomango/django-recaptcha3',
     install_requires=[
         'requests'
     ],
-    tests_require=(
-        ['django-setuptest'],
-    ),
+    tests_require=[
+        'django-setuptest'
+    ],
     test_suite='setuptest.setuptest.SetupTestSuite',
+    license='GNU Lesser General Public License v3 (LGPLv3)',
     description='Django reCaptcha v3 field/widget',
-    long_description=readme(),
-    author='Andrea Briganti',
-    author_email='kbytesys@gmail.com',
-    url='https://github.com/kbytesys/django-recaptcha3',
-    download_url='https://github.com/kbytesys/django-recaptcha3/tarball/v%s' % version,
-    keywords=['django', 'recaptcha', 'recaptcha3'],
-    license='GNU LGPL v2',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     classifiers=[
-        'Development Status :: 4 - Beta',
-        'Environment :: Web Environment',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: GNU Lesser General Public License v2 (LGPLv2)',
-        'Natural Language :: English',
+        'License :: OSI Approved :: BSD License',
+        'Operating System :: OS Independent',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Framework :: Django',
-        'Framework :: Django :: 1.8',
-        'Framework :: Django :: 1.9',
-        'Framework :: Django :: 1.10',
-        'Framework :: Django :: 1.11',
-        'Framework :: Django :: 2.0',
-        'Framework :: Django :: 2.1',
-        'Operating System :: OS Independent',
+        'Programming Language :: Python :: 3 :: Only',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
         'Topic :: Internet :: WWW/HTTP',
-        'Topic :: Software Development :: Libraries :: Python Modules'
-    ]
+        'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
+    ],
+    python_requires='>=3',
+    packages=['django_recaptcha3'],
+    include_package_data=True
 )

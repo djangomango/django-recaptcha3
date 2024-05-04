@@ -6,10 +6,11 @@ DATABASES = {
 }
 
 INSTALLED_APPS = (
-    'snowpenguin.django.recaptcha3',
+    'django_recaptcha3',
 )
 
-RECAPTCHA_PRIVATE_KEY = 'your private key'
-RECAPTCHA_PUBLIC_KEY = 'your public key'
-RECAPTCHA_DEFAULT_ACTION = 'generic'
-RECAPTCHA_SCORE_THRESHOLD = 0.5
+GOOGLE_RECAPTCHA_IS_ACTIVE = True
+GOOGLE_RECAPTCHA_SECRET_KEY = 'your private key'
+GOOGLE_RECAPTCHA_SITE_KEY = 'your public key'
+GOOGLE_RECAPTCHA_DEFAULT_ACTION = 'generic'
+GOOGLE_RECAPTCHA_SCORE_THRESHOLD = 0.5

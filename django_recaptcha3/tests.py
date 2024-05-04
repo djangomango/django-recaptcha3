@@ -3,10 +3,10 @@ import os
 import mock
 
 from django.forms import Form
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
-from snowpenguin.django.recaptcha3.fields import ReCaptchaField
-from snowpenguin.django.recaptcha3.widgets import ReCaptchaHiddenInput
+from .fields import ReCaptchaField
+from .widgets import ReCaptchaHiddenInput
 
 
 class RecaptchaTestForm(Form):
@@ -14,24 +14,15 @@ class RecaptchaTestForm(Form):
 
 
 class TestRecaptchaForm(TestCase):
-    def test_dummy_validation(self):
-        os.environ['RECAPTCHA_DISABLE'] = 'True'
 
+    @override_settings(GOOGLE_RECAPTCHA_IS_ACTIVE=False)
+    def test_dummy_validation(self):
         # form should validate without a 'g-recaptcha-response'
         form = RecaptchaTestForm({})
         s = self.assertTrue(form.is_valid())
         # NOTE: no mocked response is returned
         self.assertEqual(form.cleaned_data['recaptcha'], {})
-        del os.environ['RECAPTCHA_DISABLE']
-
-    def test_dummy_validation_canfail(self):
-        os.environ['RECAPTCHA_DISABLE'] = json.dumps({'score': 0.4, 'hostname': 'localhost', 'action': 'homepage'})
-        form = RecaptchaTestForm({})
-        # NOTE: score_threshold validation is not performed when disabled
-        self.assertTrue(form.is_valid())
-        self.assertEqual(form.cleaned_data['recaptcha'].get('score'), 0.4)
-        self.assertEqual(form.cleaned_data['recaptcha'].get('hostname'), 'localhost')
-        self.assertEqual(form.cleaned_data['recaptcha'].get('action'), 'homepage')
+        del os.environ['GOOGLE_RECAPTCHA_IS_ACTIVE']
 
     @mock.patch('requests.post')
     def test_validate_error_invalid_token(self, requests_post):
@@ -58,8 +49,7 @@ class TestRecaptchaForm(TestCase):
         self.assertEqual(form.errors['recaptcha'][0], 'reCaptcha score is too low. score: 0.5')
 
     @mock.patch('requests.post')
-    def test_validate_success_highter_score(self, requests_post):
-
+    def test_validate_success_higher_score(self, requests_post):
         recaptcha_response = {
             'success': True,
             'score': 0.7,
@@ -70,6 +60,7 @@ class TestRecaptchaForm(TestCase):
 
         class RecaptchaTestForm(Form):
             recaptcha = ReCaptchaField(score_threshold=0.4)
+
         form = RecaptchaTestForm({"g-recaptcha-response": "dummy token"})
         self.assertTrue(form.is_valid())
         self.assertEqual(form.cleaned_data['recaptcha'].get('score'), 0.7)
@@ -78,7 +69,6 @@ class TestRecaptchaForm(TestCase):
 
     @mock.patch('requests.post')
     def test_settings_score_threshold(self, requests_post):
-
         recaptcha_response = {
             'success': True,
             'score': 0.6
@@ -91,46 +81,43 @@ class TestRecaptchaForm(TestCase):
         self.assertTrue(form.is_valid())
 
     @mock.patch('requests.post')
+    @override_settings(GOOGLE_RECAPTCHA_SCORE_THRESHOLD=0.7)
     def test_settings_score_threshold_override_fields(self, requests_post):
-
         recaptcha_response = {
             'success': True,
             'score': 0.6
         }
         requests_post.return_value.json = lambda: recaptcha_response
 
-        with self.settings(RECAPTCHA_SCORE_THRESHOLD=0.7):
-            class RecaptchaTestForm(Form):
-                recaptcha = ReCaptchaField()
+        class RecaptchaTestForm(Form):
+            recaptcha = ReCaptchaField()
 
-            form = RecaptchaTestForm({"g-recaptcha-response": "dummy token"})
-            self.assertFalse(form.is_valid())
+        form = RecaptchaTestForm({"g-recaptcha-response": "dummy token"})
+        self.assertFalse(form.is_valid())
 
     @mock.patch('requests.post')
+    @override_settings(GOOGLE_RECAPTCHA_SCORE_THRESHOLD=0.7)
     def test_settings_score_threshold_override_each_fields(self, requests_post):
-
         recaptcha_response = {
             'success': True,
             'score': 0.4
         }
         requests_post.return_value.json = lambda: recaptcha_response
 
-        with self.settings(RECAPTCHA_SCORE_THRESHOLD=0.7):
-            class RecaptchaTestForm(Form):
-                recaptcha = ReCaptchaField()
+        class RecaptchaTestForm(Form):
+            recaptcha = ReCaptchaField()
 
-            class RecaptchaOverrideTestForm(Form):
-                recaptcha = ReCaptchaField(score_threshold=0.3)
+        class RecaptchaOverrideTestForm(Form):
+            recaptcha = ReCaptchaField(score_threshold=0.3)
 
-            form1 = RecaptchaTestForm({"g-recaptcha-response": "dummy token"})
-            self.assertFalse(form1.is_valid())
+        form1 = RecaptchaTestForm({"g-recaptcha-response": "dummy token"})
+        self.assertFalse(form1.is_valid())
 
-            form2 = RecaptchaOverrideTestForm({"g-recaptcha-response": "dummy token"})
-            self.assertTrue(form2.is_valid())
+        form2 = RecaptchaOverrideTestForm({"g-recaptcha-response": "dummy token"})
+        self.assertTrue(form2.is_valid())
 
     @mock.patch('requests.post')
     def test_validate_success(self, requests_post):
-
         recaptcha_response = {
             'success': True,
             'score': 0.5

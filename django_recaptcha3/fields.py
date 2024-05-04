@@ -7,19 +7,18 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
-
 import requests
 
-from snowpenguin.django.recaptcha3.widgets import ReCaptchaHiddenInput
+from .widgets import ReCaptchaHiddenInput
 
 logger = logging.getLogger(__name__)
 
 
 class ReCaptchaField(forms.CharField):
     def __init__(self, attrs=None, *args, **kwargs):
-        if os.environ.get('RECAPTCHA_DISABLE', None) is None:
-            self._private_key = kwargs.pop('private_key', settings.RECAPTCHA_PRIVATE_KEY)
-            self._score_threshold = kwargs.pop('score_threshold', settings.RECAPTCHA_SCORE_THRESHOLD)
+        self._is_active = kwargs.pop('is_active', settings.GOOGLE_RECAPTCHA_IS_ACTIVE)
+        self._secret_key = kwargs.pop('private_key', settings.GOOGLE_RECAPTCHA_SECRET_KEY)
+        self._score_threshold = kwargs.pop('score_threshold', settings.GOOGLE_RECAPTCHA_SCORE_THRESHOLD)
 
         if 'widget' not in kwargs:
             kwargs['widget'] = ReCaptchaHiddenInput()
@@ -27,20 +26,16 @@ class ReCaptchaField(forms.CharField):
         super(ReCaptchaField, self).__init__(*args, **kwargs)
 
     def clean(self, values):
-        # Disable the check (and allow empty field value) if we run in a unittest
-        if os.environ.get('RECAPTCHA_DISABLE', None) is not None:
-            try:
-                return json.loads(os.environ.get('RECAPTCHA_DISABLE', None))
-            except:
-                return {}
+        if not self._is_active:
+            return {}
 
-        response_token = super(ReCaptchaField, self).clean(values)
+        response_token = super(ReCaptchaField, self).clean(values[0])
 
         try:
             r = requests.post(
                 'https://www.google.com/recaptcha/api/siteverify',
                 {
-                    'secret': self._private_key,
+                    'secret': self._secret_key,
                     'response': response_token
                 },
                 timeout=5
@@ -54,7 +49,7 @@ class ReCaptchaField(forms.CharField):
             )
 
         json_response = r.json()
-        logger.debug("Recieved response from reCaptcha server: %s", json_response)
+        logger.debug("Received response from reCaptcha server: %s", json_response)
 
         if bool(json_response['success']):
             if self._score_threshold is not None and self._score_threshold > json_response['score']:
