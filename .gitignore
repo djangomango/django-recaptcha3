@@ -58,3 +58,7 @@ target/
 /django-test/
 *.iml
 .idea
+
+# Local developer tools and private runners
+local/
+scripts/local/

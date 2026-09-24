@@ -1,238 +1,107 @@
-# Django reCaptcha v3 [![Build Status](https://travis-ci.org/kbytesys/django-recaptcha3.svg?branch=master)](https://travis-ci.org/kbytesys/django-recaptcha2)
-----
+# Django-Recaptcha3
 
-This integration app implements a recaptcha field for <a href="https://developers.google.com/recaptcha/intro">Google reCaptcha v3</a>.
+A Django package providing seamless integration for Google reCAPTCHA v3 in forms and templates, with configurable score thresholds and bot protection.
 
-**Warning:** this package is **not** compatible with django-recaptcha2
+---
 
-----
-
-## How to install
-
-Install the required package from pip (or take the source and install it by yourself):
+## Installation
 
 ```bash
-pip install django-recaptcha3
+pip install git+https://github.com/djangomango/django-recaptcha3.git@0.1.0
 ```
 
-Then add django-recaptcha3 to your installed apps:
+Or add to your `requirements.txt`:
+
+```txt
+git+https://github.com/djangomango/django-recaptcha3.git@0.1.0
+```
+
+Add `django_recaptcha3` to your `INSTALLED_APPS` in `settings.py`:
 
 ```python
-INSTALLED_APPS = (
+INSTALLED_APPS = [
     ...
-    'snowpenguin.django.recaptcha3',
+    "django_recaptcha3",
     ...
-)
+]
 ```
 
-And add your reCaptcha private and public key to your django settings.py and the default action name, recaptcha score threshold:
+---
+
+## Configuration
+
+Configure your Google reCAPTCHA v3 keys in `settings.py`:
 
 ```python
-RECAPTCHA_PRIVATE_KEY = 'your private key'
-RECAPTCHA_PUBLIC_KEY = 'your public key'
-RECAPTCHA_DEFAULT_ACTION = 'generic'
-RECAPTCHA_SCORE_THRESHOLD = 0.5
-RECAPTCHA_LANGUAGE = 'en' # for auto detection language, remove this from your settings
-# If you require reCaptcha to be loaded from somewhere other than https://google.com
-# (e.g. to bypass firewall restrictions), you can specify what proxy to use.
-# RECAPTCHA_FRONTEND_PROXY_HOST = 'https://recaptcha.net'
-
+GOOGLE_RECAPTCHA_IS_ACTIVE = True
+GOOGLE_RECAPTCHA_SITE_KEY = "your-public-site-key"
+GOOGLE_RECAPTCHA_SECRET_KEY = "your-private-secret-key"
+GOOGLE_RECAPTCHA_DEFAULT_ACTION = "generic"
+GOOGLE_RECAPTCHA_SCORE_THRESHOLD = 0.5
 ```
 
-If you have to create the apikey for the domains managed by your django project, you can visit this <a href="https://www.google.com/recaptcha/admin">website</a>.
+---
 
 ## Usage
-### Form and Widget
-You can simply create a reCaptcha enabled form with the field provided by this app:
+
+### 1. Form & Widget
+
+Add `ReCaptchaField` to your Django form:
 
 ```python
-from snowpenguin.django.recaptcha3.fields import ReCaptchaField
+from django import forms
+from django_recaptcha3 import ReCaptchaField
 
-class ExampleForm(forms.Form):
-    [...]
-    captcha = ReCaptchaField()
-    [...]
-```
 
-Form validation of the ReCaptchaField causes us to verify the token returned from the client against the ReCaptcha servers and populates a dictionary containing the `score`, `action`, `hostname`, and `challenge_ts` fields as the form fields `cleaned_data`:
-
-```python
-    def formview(request):
-        if request.method == "POST":
-            form = ExampleForm(request.POST)
-            if form.is_valid():
-              captcha_score = form.cleaned_data['captcha'].get('score')
-```
-
-If a communication problem occurs, the token supplied by the client is invalid or has expired then a ValidationError is raised.
-
-## Automatic Enforcement
-
-If you want low scores to cause a ValidationError, pass an appropriate `score_threshold` to the `ReCaptchaField`, or set the configuration variable settings.RECAPTCHA_SCORE_THRESHOLD.
-
-The default value for the threshold is 0.0, which allows all successful capture responses through for you to later check the value of `score`.
-
-```python
-from snowpenguin.django.recaptcha3.fields import ReCaptchaField
-
-class ExampleForm(forms.Form):
-    [...]
+class ContactForm(forms.Form):
+    name = forms.CharField(max_length=100)
+    email = forms.EmailField()
+    message = forms.CharField(widget=forms.Textarea)
     captcha = ReCaptchaField(score_threshold=0.5)
-    [...]
 ```
 
-You can also set the private key on the "private_key" argument of the ReCaptchaField contructor if you want to override the one inside your configuration.
+In your view:
 
-### Templating
-You can use some template tags to simplify the reCaptcha adoption:
+```python
+def contact_view(request):
+    if request.method == "POST":
+        form = ContactForm(request.POST)
+        if form.is_valid():
+            score = form.cleaned_data["captcha"].get("score")
+            # Process contact form...
+```
 
-* recaptcha_init: add the script tag for reCaptcha api. You have to put this tag somewhere in your "head" element
-* recaptcha_ready: call the execute function when the api script is loaded
-* recaptcha_execute: start the reCaptcha check and set the token from the api in your django forms. Token is valid for 120s, after this time it is automatically regenerated.
-* recaptcha_key: if you want to use reCaptcha manually in your template, you will need the sitekey (a.k.a. public api key).
-  This tag returns a string with the configured public key.
+### 2. Templates
 
-You can use the form as usual.
+Load the `recaptcha3` template tag library and initialize reCAPTCHA:
 
-### Samples
-#### Simple
-
-Just create a form with the reCaptcha field and follow this template example:
-
-```django
+```html
 {% load recaptcha3 %}
 <html>
   <head>
-      {% recaptcha_init %}
-      {% recaptcha_ready action_name='homepage' %}
+    {% recaptcha_init %}
+    {% recaptcha_ready action_name='contact' %}
   </head>
   <body>
-    <form action="?" method="POST">
+    <form action="" method="post">
       {% csrf_token %}
       {{ form }}
-      <input type="submit" value="Submit">
+      <button type="submit">Submit</button>
     </form>
   </body>
 </html>
 ```
 
-#### Custom callback
+### 3. Disabling in Tests
 
-The callback can be used to allow to use the token received from the api in ajax calls or whatever
-
-```django
-{% load recaptcha3 %}
-<html>
-  <head>
-      <script>
-          function alertToken(token) {
-              alert(token);
-          }
-      </script>
-      {% recaptcha_init %}
-      {% recaptcha_ready action_name='homepage' custom_callback='alertToken' %}
-  </head>
-  <body>
-    <form action="?" method="POST">
-      {% csrf_token %}
-      {{ form }}
-      <input type="submit" value="Submit">
-    </form>
-  </body>
-</html>
-```
-
-#### Multiple render example
-
-You can render multiple reCaptcha without any extra effort:
-
-```django
-{% load recaptcha3 %}
-<html>
-  <head>
-      {% recaptcha_init %}
-      {% recaptcha_ready action_name='homepage' %}
-  </head>
-  <body>
-    <form action="?" method="POST">
-      {% csrf_token %}
-      {{ form1 }}
-      <input type="submit" value="Submit">
-    </form>
-    <form action="?" method="POST">
-      {% csrf_token %}
-      {{ form2 }}
-      <input type="submit" value="Submit">
-    </form>
-  </body>
-</html>
-```
-
-#### Bare metal!
-
-You can use the plain javascript, just remember to set the correct value for the hidden field in the form
-
-```django
-<html>
-  <head>
-      <script src="https://www.google.com/recaptcha/api.js?render=reCAPTCHA_site_key"></script>
-      <script>
-        grecaptcha.ready(function() {
-          var grecaptcha_execute = function(){
-            grecaptcha.execute('reCAPTCHA_site_key', {action: 'homepage'}).then(function(token) {
-              document.querySelectorAll('input.django-recaptcha-hidden-field').forEach(function (value) {
-                  value.value = token;
-              });
-              return token;
-            })
-          };
-          grecaptcha_execute()
-          setInterval(grecaptcha_execute, 120000);
-        });
-      </script>
-  </head>
-  <body>
-    <form action="?" method="POST">
-      {% csrf_token %}
-      {{ form }}
-      <input type="submit" value="Submit">
-    </form>
-  </body>
-</html>
-```
-
-
-## Testing
-### Test unit support
-You can disable recaptcha field validation in unit tests by setting the RECAPTCHA_DISABLE env variable. This will skip the external call to Recaptca servers, returning a valid field with no data.
+Disable external API calls during unit tests by setting:
 
 ```python
-os.environ['RECAPTCHA_DISABLE'] = 'True'
-```
-You can use any word in place of "True", the clean function will check only if the variable exists.
-
-If you set `RECAPTCHA_DISABLE` to be valid json, it will be interpreted as a mock captcha server response allowing you to mock score/hostname/action as required:
-```python
-os.environ['RECAPTCHA_DISABLE'] = json.dumps({'score': 0.4, 'hostname': 'localhost', 'action': 'homepage'})
+GOOGLE_RECAPTCHA_IS_ACTIVE = False
 ```
 
-### Test unit with recaptcha3 disabled
-```python
-import os
-import unittest
+---
 
-from yourpackage.forms import MyForm
+## License
 
-class TestCase(unittest.TestCase):
-    def setUp(self):
-        os.environ['RECAPTCHA_DISABLE'] = 'True'
-
-    def test_myform(self):
-        form = MyForm({
-            'field1': 'field1_value'
-        })
-        self.assertTrue(form.is_valid())
-
-    def tearDown(self):
-        del os.environ['RECAPTCHA_DISABLE']
-```
+Licensed under the **GNU Lesser General Public License v2.1 (LGPLv2.1)**.
